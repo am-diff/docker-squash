@@ -354,34 +354,27 @@ class Image(object):
             try:
                 image = self.docker.get_image(image_id)
 
-                if docker.version_info[0] < 3:
-                    # Docker library prior to 3.0.0 returned the requests
-                    # object directly which cold be used to read from
-                    self.log.debug(
-                        "Extracting image using HTTPResponse object directly")
-                    self._extract_tar(image, directory)
-                else:
-                    # Docker library >=3.0.0 returns iterator over raw data
-                    self.log.debug(
-                        "Extracting image using iterator over raw data")
+                # Docker library >=3.0.0 returns iterator over raw data
+                self.log.debug(
+                    "Extracting image using iterator over raw data")
 
-                    fd_r, fd_w = os.pipe()
+                fd_r, fd_w = os.pipe()
 
-                    r = os.fdopen(fd_r, 'rb')
-                    w = os.fdopen(fd_w, 'wb')
+                r = os.fdopen(fd_r, 'rb')
+                w = os.fdopen(fd_w, 'wb')
 
-                    extracter = threading.Thread(
-                        target=self._extract_tar, args=(r, directory))
-                    extracter.start()
+                extracter = threading.Thread(
+                    target=self._extract_tar, args=(r, directory))
+                extracter.start()
 
-                    for chunk in image:
-                        w.write(chunk)
+                for chunk in image:
+                    w.write(chunk)
 
-                    w.flush()
-                    w.close()
+                w.flush()
+                w.close()
 
-                    extracter.join()
-                    r.close()
+                extracter.join()
+                r.close()
                 self.log.info("Image saved!")
                 return True
             except Exception as e:
